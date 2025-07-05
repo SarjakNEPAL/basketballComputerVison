@@ -1,0 +1,27 @@
+a<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Basketball Coach</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>🔴 Live Mode</h1>
+  <video id="input_video" autoplay muted></video>
+  <canvas id="output_canvas" width="640" height="480"></canvas>
+  <ul id="feedback"></ul>
+  <button onclick="startRecording()">🎥 Record</button>
+  <button onclick="stopRecording()">⏹️ Stop</button>
+  <button onclick="resetSession()">🔄 Reset</button>
+  <video id="recorded" controls></video>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+  <script type="module" src="live.js"></script>
+</body>
+</html>

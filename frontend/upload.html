@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>📤 Upload Basketball Coach</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>📤 Upload Mode</h1>
+
+  <div class="video-wrapper">
+    <input type="file" id="videoUpload" accept="video/*" />
+    <video id="uploadedVideo" controls></video>
+    <canvas id="output_canvas" width="640" height="480"></canvas>
+  </div>
+
+  <ul id="feedback"></ul>
+
+  <div class="controls">
+    <button onclick="analyzeUploadedVideo()">🧠 Analyze</button>
+    <button onclick="resetSession()">🔄 Reset</button>
+  </div>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+  <script type="module" src="upload.js"></script>
+</body>
+</html>
