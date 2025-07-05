@@ -2,21 +2,21 @@ import { analyzeShot } from './coach.js';
 
 const video = document.getElementById('uploadedVideo');
 const canvas = document.getElementById('output_canvas');
+const recorded = document.getElementById('recorded');
 const ctx = canvas.getContext('2d');
 const feedbackBox = document.getElementById('feedback');
 
-let lastSpoken = "";
-let lastSpokenTime = 0;
-let model;
+let model, analysisInterval;
+let lastSpoken = "", lastSpokenTime = 0;
+
+const hoopBox = { x: 500, y: 50, width: 60, height: 40 };
 
 function speak(text) {
   const now = Date.now();
   if (!text || text === lastSpoken || now - lastSpokenTime < 5000) return;
   lastSpoken = text;
   lastSpokenTime = now;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.1;
-  speechSynthesis.speak(utterance);
+  speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
 function displayFeedback(feedback) {
@@ -24,60 +24,85 @@ function displayFeedback(feedback) {
   speak(feedback.join('. '));
 }
 
-function draw(results) {
+function resetSession() {
+  clearInterval(analysisInterval);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-  drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
-
-  const feedback = analyzeShot(results.poseLandmarks, results.multiHandLandmarks);
-  displayFeedback(feedback);
+  feedbackBox.innerHTML = "";
+  lastSpoken = "";
+  lastSpokenTime = 0;
+  video.pause();
+  video.currentTime = 0;
+  video.src = "";
 }
 
-const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7 });
-hands.onResults(draw);
+function checkScore(ballBox) {
+  const [bx, by, bw, bh] = ballBox;
+  const overlap =
+    bx < hoopBox.x + hoopBox.width &&
+    bx + bw > hoopBox.x &&
+    by < hoopBox.y + hoopBox.height &&
+    by + bh > hoopBox.y;
+  if (overlap) displayFeedback(["✅ Nice! Ball entered the hoop."]);
+}
 
-const pose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
-pose.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.7 });
-pose.onResults(draw);
-
-window.analyzeUploadedVideo = () => {
-  const file = document.getElementById('videoUpload').files[0];
-  if (!file) return alert("Please select a video file.");
-  video.src = URL.createObjectURL(file);
-  video.play();
-
-  const interval = setInterval(() => {
-    if (!video.paused && !video.ended) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      hands.send({ image: canvas });
-      pose.send({ image: canvas });
-      detectBall(video);
-      detectBasket(); // same placeholder
-    } else {
-      clearInterval(interval);
-    }
-  }, 100);
-};
-
-async function detectBall(video) {
-  if (!model) return;
-  const predictions = await model.detect(video);
+async function detectBall() {
+  const bitmap = await createImageBitmap(canvas);
+  const predictions = await model.detect(bitmap);
   const ball = predictions.find(p => p.class === 'sports ball');
   if (ball) {
     ctx.strokeStyle = 'orange';
     ctx.lineWidth = 2;
-    ctx.strokeRect(ball.bbox[0], ball.bbox[1], ball.bbox[2], ball.bbox[3]);
+    ctx.strokeRect(...ball.bbox);
+    checkScore(ball.bbox);
   }
 }
 
 function detectBasket() {
   ctx.strokeStyle = 'blue';
   ctx.lineWidth = 2;
-  ctx.strokeRect(500, 50, 60, 40); // Simulated basket
+  ctx.strokeRect(hoopBox.x, hoopBox.y, hoopBox.width, hoopBox.height);
 }
+
+async function draw(results) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: 'lime', lineWidth: 2 });
+  drawLandmarks(ctx, results.poseLandmarks, { color: 'red', lineWidth: 2 });
+
+  const feedback = await analyzeShot(results.poseLandmarks);
+  displayFeedback(feedback);
+
+  detectBasket();
+  await detectBall();
+}
+
+const pose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+pose.setOptions({ modelComplexity: 1, minDetectionConfidence: 0.7 });
+pose.onResults(draw);
+
+function analyzeUploadedVideo() {
+  const file = document.getElementById('videoUpload').files[0];
+  if (!file) return alert("Please select a video file.");
+
+  video.src = URL.createObjectURL(file);
+  video.play();
+
+  video.onplay = () => {
+    analysisInterval = setInterval(async () => {
+      if (!video.paused && !video.ended) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const bitmap = await createImageBitmap(canvas);
+        await pose.send({ image: bitmap });
+      } else {
+        clearInterval(analysisInterval);
+      }
+    }, 100);
+  };
+}
+
+window.analyzeUploadedVideo = analyzeUploadedVideo;
+window.resetSession = resetSession;
 
 (async () => {
   model = await cocoSsd.load();
